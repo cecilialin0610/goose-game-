@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网红大白鹅模拟器</title>
+<style>
+:root{--ink:#2b1d12;--yel:#ffe14a;--red:#ff4d5a;--paper:#fffaf0}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;color:var(--ink);background:radial-gradient(circle,rgba(255,140,0,.3) 2px,transparent 2.6px) 0 0/14px 14px,var(--yel);display:flex;justify-content:center;padding:14px}
+.wrap{width:100%;max-width:660px}
+h1{margin:4px 0 14px;text-align:center;font-size:clamp(28px,7vw,42px);font-weight:900;font-style:italic;letter-spacing:3px;color:#fff;-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:4px 4px 0 var(--ink);transform:rotate(-2deg)}
+.card{position:relative;background:var(--paper);border:4px solid var(--ink);border-radius:16px;box-shadow:6px 6px 0 var(--ink);padding:14px;margin-bottom:14px}
+.hidden{display:none!important}
+button{font:inherit;font-size:17px;font-weight:900;color:#fff;background:var(--red);border:4px solid var(--ink);border-radius:12px;padding:9px 18px;cursor:pointer;box-shadow:4px 4px 0 var(--ink);transition:transform .1s,box-shadow .1s}
+button:hover{transform:translate(-1px,-1px);box-shadow:6px 6px 0 var(--ink)}
+button:active{transform:translate(4px,4px);box-shadow:0 0 0 var(--ink)}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:4px 4px 0 var(--ink)}
+button.alt{background:#fff;color:var(--ink)}
+input{width:100%;font:inherit;font-size:18px;padding:9px 14px;border:4px solid var(--ink);border-radius:12px;text-align:center;margin:10px 0}
+input:focus,button:focus-visible{outline:4px solid #45c4ff;outline-offset:2px}
+.row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.intro{margin:0;text-align:center;line-height:1.7;min-height:3.4em;font-weight:700}
+.typing::after{content:"\258C";margin-left:2px;animation:blink .6s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.stat{display:flex;align-items:center;gap:8px;margin:7px 0;font-weight:900}
+.stat label{width:92px;font-size:14px}
+.bar{flex:1;height:18px;background:#fff;border:3px solid var(--ink);border-radius:10px;overflow:hidden}
+.bar i{display:block;height:100%}.b1{background:#ff5d5d}.b2{background:#4dc3ff}.b3{background:#b36bff}
+.stat b{width:30px;text-align:right}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-weight:900;margin-bottom:4px}
+.pill{background:var(--yel);border:3px solid var(--ink);border-radius:20px;padding:1px 12px;font-size:14px}
+.dlg::before{content:"";position:absolute;top:-17px;left:56px;border:10px solid transparent;border-bottom:14px solid var(--ink);border-top:0}
+.dlg::after{content:"";position:absolute;top:-10px;left:59px;border:7px solid transparent;border-bottom:10px solid var(--paper);border-top:0}
+#dlgTag,.tag{display:inline-block;background:var(--red);color:#fff;border:3px solid var(--ink);padding:1px 12px;font-weight:900;font-size:14px;transform:skew(-6deg);margin-bottom:8px}
+#dlgText{margin:0 0 10px;min-height:58px;line-height:1.7;font-size:17px;font-weight:700}
+.opts{display:grid;gap:10px}
+.opts button{text-align:left;background:#fff;color:var(--ink);animation:pop .25s ease-out backwards}
+.opts button:hover{background:var(--yel)}
+@keyframes pop{from{transform:scale(.7);opacity:0}}
+#log{height:150px;overflow-y:auto;background:#fff;border:3px dashed var(--ink);border-radius:10px;padding:8px 10px;font-size:14px;line-height:1.6}
+#log p{margin:0 0 6px;padding-bottom:6px;border-bottom:1px dotted #bbb}
+#log p.res{color:#c2370f;font-weight:700}
+.end{text-align:center}.end h2{font-size:28px;margin:6px 0}.end p{line-height:1.7;min-height:5em}
+/* ===== 插画舞台 ===== */
+.stage{position:relative;height:230px;margin-bottom:14px;border:4px solid var(--ink);border-radius:16px;box-shadow:6px 6px 0 var(--ink);overflow:hidden;background:repeating-conic-gradient(from 0deg at 50% 70%,#fff2a8 0 7.5deg,#ffd45a 7.5deg 15deg)}
+.stage>div{position:absolute}
+.ground{left:0;right:0;bottom:0;height:34px;background:repeating-linear-gradient(90deg,#5fcf75 0 18px,#78dc8b 18px 36px);border-top:4px solid var(--ink)}
+#goose{left:6%;bottom:20px;width:150px;z-index:3}
+#npc{right:7%;bottom:20px;width:100px;z-index:2}
+#loot{right:calc(7% - 1px);bottom:60px;width:26px;z-index:4}
+#cap{left:10px;top:10px;z-index:6;background:var(--paper);border:3px solid var(--ink);padding:2px 12px;font-weight:900;font-size:14px;transform:rotate(-2deg);box-shadow:3px 3px 0 var(--ink)}
+#cap:empty{display:none}
+[data-solo] #npc,[data-solo] #loot,[data-solo] #cap{display:none}
+[data-taken] #loot{opacity:0}
+#burst{position:absolute;left:34%;top:6px;width:130px;opacity:0;z-index:7;pointer-events:none}
+#burst.go{animation:bpop 1.7s ease-out}
+@keyframes bpop{0%{opacity:0;transform:scale(.2) rotate(-20deg)}12%{opacity:1;transform:scale(1.25) rotate(6deg)}25%{transform:scale(1) rotate(-4deg)}80%{opacity:1}100%{opacity:0}}
+.head{transform-origin:108px 76px;animation:nod 2.2s ease-in-out infinite}
+@keyframes nod{50%{transform:rotate(7deg)}}
+.legs{transform-origin:80px 112px}
+.blush,.brow,.vein,.steam,.sweat,.spark,.ob{opacity:0}
+#goose{animation:bob 1.8s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.enter #npc{animation:nIn .5s ease-out}
+@keyframes nIn{from{transform:translateX(130px);opacity:0}}
+@keyframes leg{50%{transform:rotate(22deg)}}
+@keyframes shake{25%{transform:rotate(-7deg)}75%{transform:rotate(7deg)}}
+.a-attack .legs,.a-flee .legs,.a-grab .legs{animation:leg .2s infinite}
+.a-attack .ob,.a-rage .ob,.a-flee .ob,.a-grab .ob{opacity:1}
+.a-attack .sm,.a-rage .sm,.a-flee .sm,.a-grab .sm{opacity:0}
+/* 攻击 */
+.a-attack #goose{animation:gAtk 1.9s ease-in-out}
+.a-attack #npc{animation:shake .3s 1.1s 4}
+.a-attack .head{animation:none;transform:rotate(16deg)}
+@keyframes gAtk{0%{transform:none}25%,45%,65%{transform:translateX(calc(var(--d)*.9))}35%,55%{transform:translateX(calc(var(--d)*.7)) rotate(-8deg)}100%{transform:none}}
+/* 发火 */
+.a-rage #goose{animation:gRage 1.9s linear}
+.a-rage #npc{animation:shake .25s 8}
+.a-rage .blush,.a-rage .brow,.a-rage .vein,.a-rage .steam{opacity:1}
+.a-rage .hc{fill:#ff9c9c}
+.a-rage .steam{animation:steam .5s infinite}
+@keyframes steam{50%{transform:translateY(-8px)}}
+@keyframes gRage{0%,100%{transform:none}10%,30%,50%,70%,90%{transform:translateX(-6px) rotate(-3deg) scale(1.12)}20%,40%,60%,80%{transform:translateX(6px) rotate(3deg) scale(1.12)}}
+/* 逃跑 */
+.a-flee #goose{animation:gFlee 2s ease-in}
+.a-flee .sweat{opacity:1}
+.a-flee #npc{animation:shake .3s 3}
+@keyframes gFlee{0%{transform:none}10%{transform:translateX(10px) rotate(8deg)}55%,70%{transform:translateX(calc(var(--o)*-1)) rotate(-8deg)}100%{transform:none}}
+/* 抢东西 */
+.a-grab #goose{animation:gGrab 1.9s ease-in-out}
+.a-grab #loot{animation:lGrab 1.9s ease-in-out forwards}
+@keyframes gGrab{0%{transform:none}35%,45%{transform:translateX(var(--d)) scale(1.12)}100%{transform:none}}
+@keyframes lGrab{0%,45%{transform:none}100%{transform:translateX(calc(var(--d)*-1))}}
+/* 发呆 */
+.a-idle #goose{animation:gIdle 2.2s ease-in-out}
+.a-idle .sweat{opacity:1}
+@keyframes gIdle{0%,100%{transform:none}30%{transform:rotate(-8deg)}65%{transform:rotate(5deg) translateY(4px)}}
+/* 表演 */
+.a-show #goose{animation:gShow 2s ease-in-out}
+.a-show .spark{opacity:1;animation:twk .4s infinite}
+@keyframes twk{50%{opacity:.3}}
+@keyframes gShow{0%,50%,100%{transform:none}25%{transform:translateY(-55px) rotate(360deg) scale(1.15)}75%{transform:translateY(-28px) rotate(-12deg)}}
+@media(prefers-reduced-motion:reduce){.stage *,.opts button,#burst{animation:none!important}}
+.spin{transform-origin:50px 84px;animation:rot 3s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.rot{transform-box:fill-box;transform-origin:center;animation:fl .12s infinite}
+@keyframes fl{50%{transform:scaleX(.35)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>网红大白鹅模拟器</h1>
+
+<div class="stage" id="stage" data-solo="1">
+  <div id="cap"></div><div class="ground"></div>
+  <div id="npc"></div>
+  <div id="loot"><svg viewBox="0 0 30 30"><circle cx="15" cy="15" r="12" fill="#ffb84d" stroke="#2b1d12" stroke-width="3"/><path d="M9 12q6-6 12 0" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+  <div id="goose"><svg viewBox="0 0 170 150" width="100%" stroke-linejoin="round">
+    <g class="legs" stroke="#ff9a1f" stroke-width="7" stroke-linecap="round" fill="none"><path d="M68 112v24M94 112v24M60 140h18M86 140h18"/></g>
+    <path d="M40 82 14 62l4 32z" fill="#fff" stroke="#2b1d12" stroke-width="4"/>
+    <g class="head"><path d="M108 76C126 64 120 44 124 30" fill="none" stroke="#2b1d12" stroke-width="22" stroke-linecap="round"/><path d="M108 76C126 64 120 44 124 30" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round"/>
+      <circle class="hc" cx="126" cy="28" r="15" fill="#fff" stroke="#2b1d12" stroke-width="4"/><path d="M138 22l24 8-24 8z" fill="#ff9a1f" stroke="#2b1d12" stroke-width="3"/>
+      <circle cx="130" cy="24" r="3.5" fill="#2b1d12"/><circle class="blush" cx="123" cy="36" r="6" fill="#ff4d5a"/><path class="brow" d="M123 15l13 6" stroke="#2b1d12" stroke-width="4" stroke-linecap="round"/>
+      <path class="vein" d="M108 6l9 7m0-7l-9 7" stroke="#ff4d5a" stroke-width="3.5" stroke-linecap="round"/><g class="steam" fill="#fff" stroke="#2b1d12" stroke-width="2"><circle cx="138" cy="6" r="4"/><circle cx="150" cy="12" r="3"/></g>
+      <path class="sweat" d="M110 24q-6 10 0 12 6-2 0-12z" fill="#5fd0ff" stroke="#2b1d12" stroke-width="2"/>
+      <path class="spark" d="M148 2l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" fill="#ffd23f" stroke="#2b1d12" stroke-width="2"/></g>
+    <ellipse cx="82" cy="88" rx="46" ry="32" fill="#fff" stroke="#2b1d12" stroke-width="4"/><path d="M62 86q22-18 46 2-20 22-46-2z" fill="#eaf4ff" stroke="#2b1d12" stroke-width="3"/></svg></div>
+  <svg id="burst" viewBox="0 0 120 100"><polygon points="60,3 71,23 93,9 89,34 116,36 98,54 115,74 89,76 85,98 64,85 48,98 42,76 16,80 30,58 5,42 33,36 29,11 52,24" fill="#ffe14a" stroke="#2b1d12" stroke-width="4" stroke-linejoin="round"/><text id="bt" x="60" y="58" text-anchor="middle" font-size="26" font-weight="900" fill="#ff4d5a" stroke="#2b1d12" stroke-width="1.5"></text></svg>
+</div>
+
+<section id="start" class="card">
+  <p class="intro" id="introText"></p>
+  <input id="nameIn" maxlength="10" placeholder="鹅の大名（留空则随机）">
+  <div id="startStats"></div>
+  <div class="row"><button class="alt" id="reroll">重摇属性</button><button id="begin">出道！</button></div>
+</section>
+
+<section id="game" class="hidden">
+  <div class="card"><div class="top"><span id="gName"></span><span class="pill" id="gDay"></span><span class="pill" id="gFans"></span></div><div id="gStats"></div></div>
+  <div class="card dlg"><div id="dlgTag">旁白</div><p id="dlgText"></p><div class="opts" id="opts"></div></div>
+  <div class="card"><div id="log" aria-live="polite"></div></div>
+  <div class="row" style="margin-top:0"><button id="nextBtn">新的一天 / 搞事！</button></div>
+</section>
+
+<section id="over" class="card end hidden">
+  <span class="tag" id="oTag"></span>
+  <h2 id="oTitle"></h2><p id="oText"></p><p id="oSum" style="font-weight:900"></p>
+  <button id="again">再鹅一次</button>
+</section>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const NAMES=["鹅鹅鹅","大白","鹅中鹅","白小钢","咯咯哒哒","鹅总","鹅王","鹅鹅子","鹅步成诗"];
+const STATS=[["战斗力","b1","⚔️"],["羽毛光泽度","b2","✨"],["人类恐惧值","b3","😱"]];
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const clamp=v=>Math.max(0,Math.min(100,v));
+
+// 事件库：选项 = [按钮文字, 结果描述, [战斗力, 光泽度, 恐惧值, 粉丝]]
+const EVENTS=[
+{t:"公园晨跑大爷",d:"清晨，一位大爷在公园打太极，动作缓慢，神情安详。你的翅膀突然有点痒。",o:[
+ ["冲上去啄他的鞋带","大爷当场打出了一套从没见过的“逃命拳”，围观群众录下全程。",[6,-4,10,25]],
+ ["站在旁边跟着一起打太极","一鹅一人，和谐如画。视频标题：《这只鹅悟了》。",[-2,8,-6,40]],
+ ["偷吃他的保温杯枸杞","大爷：“这鹅比我还会养生。”",[-3,3,-4,15]]]},
+{t:"网红打卡点",d:"一位博主举着自拍杆走来：“家人们，今天来探访传说中的凶鹅！”",o:[
+ ["对着镜头大声咆哮","直播间人数飙升，弹幕齐刷：“鹅，我的神！”",[5,-3,12,50]],
+ ["优雅转身展示侧颜","博主惊呼：“这是什么神仙颜值！”",[-3,12,-5,45]],
+ ["一口叼走自拍杆","博主跑得比信号还快，手机留在了地上。",[8,-5,10,20]]]},
+{t:"外卖小哥的电动车",d:"一辆电动车停在你的地盘。后座箱子里飘出炸鸡的香味。",o:[
+ ["围着车子绕圈示威","小哥骑车跑了三条街才敢回头。",[4,0,8,15]],
+ ["假装路过，实则偷看","你和炸鸡对视了整整一分钟，口水流了一地。",[-2,-3,0,5]],
+ ["直接钻进后座箱子","你被当成“超大份白斩鸡”送到了写字楼，白领们尖叫合影。",[-4,-6,5,60]]]},
+{t:"池塘里的天鹅",d:"一只优雅的天鹅在水面漂过，斜眼看你：“你也配叫鹅？”",o:[
+ ["发起挑战：一对一单挑","天鹅被你啄得掉了三根羽毛，落荒而逃。",[10,-6,6,30]],
+ ["模仿它的优雅姿态","你滑稽地划水，反而收获一波“反差萌”粉丝。",[-4,4,-3,35]],
+ ["啥也不干，默默吃草","你赢得了“佛系鹅”称号，天鹅反而有点慌。",[-2,2,-5,10]]]},
+{t:"广场舞大妈团",d:"《最炫民族风》响起，三十位大妈整齐划一向你包抄而来。",o:[
+ ["加入队伍，领舞！","你扭着屁股走位完美，C位出道。",[2,5,-8,70]],
+ ["高声怒吼，试图驱散","大妈们齐声回吼，你被音浪震飞三米。",[-8,-6,-2,10]],
+ ["躲进灌木丛偷拍","你收获了珍贵素材，但羽毛上粘满了苍耳。",[0,-8,0,20]]]},
+{t:"一桶神秘饲料",d:"路边有桶闪着荧光的饲料，上面写着：“限时特价，吃了变强”。",o:[
+ ["全部吃光","你的肌肉鼓了起来，但羽毛变成了彩虹色，也不知道是福是祸。",[15,-10,8,40]],
+ ["只尝一口","味道像过期的薄荷糖。羽毛有点发光。",[3,6,0,10]],
+ ["拒绝诱惑，转身离开","你的自制力令人敬佩，可惜没有流量。",[0,2,-2,0]]]},
+{t:"人类小朋友来喂食",d:"一个扎小辫的小朋友举着面包，奶声奶气地喊：“大鹅鹅，吃！”",o:[
+ ["温柔地接过面包","小朋友的妈妈拍下这温馨一幕，点赞十万+。",[-3,5,-10,55]],
+ ["连小朋友的帽子一起叼走","小朋友哭了，全小区都知道你的名字。",[5,-5,15,25]],
+ ["假装没看见，昂首走过","你的高冷气质让小朋友更喜欢你了。",[0,4,-2,20]]]},
+{t:"暴雨突袭",d:"天空突然下起大暴雨，你的羽毛即将湿透，造型岌岌可危。",o:[
+ ["在雨中张开翅膀狂奔","浑身湿透的你像一道白色闪电，被拍成了电影预告片。",[6,-8,5,45]],
+ ["躲进共享单车篮筐里","你卡住了，路人花了半小时才把你拔出来。",[-3,-3,0,30]],
+ ["借用大爷的雨伞","你撑着雨伞散步，整座城市都在问：这鹅什么来头？",[-2,8,-4,50]]]},
+{t:"野生鸭子帮派",d:"一群鸭子围住你：“新来的，想在这片水域混，得交保护费。”",o:[
+ ["一鹅单挑全体鸭子","你大杀四方，鸭毛漫天飞舞，空中还飘着“嘎嘎”惨叫声。",[12,-8,8,40]],
+ ["请它们吃面包，结拜兄弟","你成了鸭子帮派老大，但被迫学会了鸭叫。",[-3,0,-3,20]],
+ ["假装自己是一只大型鸭子","鸭子们眯着眼睛看了你很久，居然信了。",[-5,0,0,10]]]},
+{t:"商场的旋转门",d:"你发现商场有个自动旋转门，里面冷气十足，还有试吃摊。",o:[
+ ["大摇大摆走进去","保安追了你三层，最后在美食广场放弃了。",[3,-4,8,60]],
+ ["在旋转门里转了半小时","你转晕了，但保安更晕。",[-3,-2,0,25]],
+ ["优雅地从扶梯下去","你的从容让顾客以为这是商场请来的吉祥物。",[0,6,-5,35]]]},
+{t:"摄影师的约拍",d:"一位摄影师递上名片：“想不想拍一组《鹅与时尚》大片？”",o:[
+ ["欣然答应，认真摆拍","封面照一出，全网都在问：这是哪位模特？",[-2,15,-6,80]],
+ ["趁他不注意叼走镜头盖","你没拍成大片，但摄影师为了找镜头盖连夜蹲点。",[4,-3,6,20]],
+ ["冷漠转头：我有经纪人","你的高冷让摄影师更想拍你了。",[0,5,0,30]]]},
+{t:"夜晚的月亮",d:"夜深了，你站在池塘边，看着月亮倒影。突然心里生出一种哲学的冲动。",o:[
+ ["引颈高歌，鹅鸣震天","整栋楼的灯都亮了，业主群里炸锅。",[3,-3,12,40]],
+ ["静静发呆，陷入沉思","你悟了。但悟到了什么，你也说不上来。",[0,3,-4,5]],
+ ["练习蹬腿，早起早睡","你的腿部肌肉在月光下闪闪发亮。",[10,0,2,5]]]},
+{t:"快递驿站大战",d:"一堆快递堆在门口，其中一个箱子贴着：易碎，轻拿轻放。",o:[
+ ["一屁股坐上去孵蛋","箱子里是玻璃杯。你坐碎了，但快递员以为这是新型送货服务。",[-3,-5,4,35]],
+ ["叼走快递，当场拆箱","里面是一双运动鞋，你穿不上，但拆箱视频火了。",[4,-3,6,45]],
+ ["对着快递大声咆哮","快递员吓得把单子签了三次。",[5,-2,9,25]]]},
+{t:"健身房的跑步机",d:"你误闯健身房，一排人类在跑步机上流汗，像一排仓鼠。",o:[
+ ["跳上跑步机，狂奔","你跑了十公里，毫无进展，但极度满足。",[10,-4,-2,40]],
+ ["领舞：带大家做拉伸","教练被抢了饭碗，大家决定办你的会员卡。",[-2,5,-8,50]],
+ ["对着镜子发起挑战","镜子里的鹅比你还凶，最后打成平手。",[6,-3,4,20]]]},
+{t:"公园相亲角",d:"大爷大妈们举着牌子，一位阿姨盯着你：“这鹅，结婚了吗？”",o:[
+ ["张开翅膀，大方展示","阿姨：“这鹅膀大腰圆，是个过日子的！”",[-2,8,-4,45]],
+ ["假装没听见，默默吃草","阿姨默默把你的照片贴上了公告栏。",[0,2,-3,15]],
+ ["叼走阿姨的牌子","全场尴尬，牌子上写着“月薪三万”。",[4,-4,8,35]]]},
+{t:"奶茶店排队",d:"奶茶店排起长队，你被夹在中间，前面的人都在拍照打卡。",o:[
+ ["大摇大摆插到第一位","店员含泪给你做了一杯“鹅鹅特调”。",[3,-3,6,40]],
+ ["偷吸一口别人的奶茶","太甜了，羽毛都有点黏。",[-2,-4,3,20]],
+ ["转身离开，拒绝加糖","你是长队里唯一清醒的鹅。",[0,3,-2,10]]]},
+{t:"无人机来袭",d:"一架无人机嗡嗡盘旋，红灯闪烁，像一只会飞的大蚊子。",o:[
+ ["冲着无人机怒吼","无人机晃了晃就飞走了，操控者发微博：《被鹅吼了》。",[4,-2,8,40]],
+ ["躲进芦苇丛一动不动","无人机拍了半天，只拍到芦苇。",[-3,1,-2,15]],
+ ["摆个造型，优雅转身","航拍大片诞生，播放量破百万。",[-2,10,-5,55]]]},
+{t:"保安大叔的追捕",d:"保安大叔举着扫帚：“这只鹅又来了！今天一定抓住你！”",o:[
+ ["撒腿就跑，跑出残影","你一路飞奔，保安在后面喘成了风箱。",[6,-5,8,45]],
+ ["迎面冲上去单挑","大叔扔掉扫帚，选择投降。",[9,-7,10,40]],
+ ["假装是雕塑一动不动","大叔围着你转了三圈，还给你擦了擦灰。",[-1,3,-5,25]]]},
+{t:"直播连麦",d:"一位主播举着手机：“家人们，咱们连麦这只鹅！”",o:[
+ ["对着镜头怒吼，吓退主播","主播的直播间人数翻倍：“神鹅！”",[5,-3,10,50]],
+ ["优雅比心，圈粉","弹幕刷屏：“这只鹅比我对象还懂事。”",[-3,8,-6,55]],
+ ["拒绝连麦，转身离开","你的神秘感让粉丝又涨了一波。",[0,2,-3,10]]]},
+{t:"邻居的葡萄架",d:"邻居家的葡萄架挂满紫色果实，墙上贴着：“此处无鹅，欢迎参观”。",o:[
+ ["偷吃一整串","葡萄籽吐了一地，邻居当场报警。",[-2,-5,3,30]],
+ ["站在墙头高歌","整个小区都听到了，居委会连夜开会。",[3,-2,9,45]],
+ ["冷漠地看着葡萄，假装没兴趣","葡萄们很失落，被你的冷漠伤到了。",[0,3,-3,10]]]}
+];
+
+const ENDS={
+ fightHi:["👑","战力封顶","鹅界武林盟主","你的战斗力爆表，连小区保安见了你都要敬礼。你被推选为“全城最不能惹的存在”，从此横着走，没人敢拦。"],
+ fightLo:["🤕","战力归零","软绵绵的鹅","你的战斗力跌到谷底，被一只路过的小松鼠一爪子掀翻。你躺在草地上，看着蓝天，决定改行当吉祥物。"],
+ shineHi:["🌟","闪瞎全城","会发光的鹅","你的羽毛亮到反光，飞机飞过都以为是灯塔。市政部门不得不给你戴上墨镜，并发放“夜间光污染许可证”。"],
+ shineLo:["🍗","羽毛秃了","朴素无华的鹅","你的羽毛越来越稀疏，被网友亲切地叫做“秃秃鹅”。你转型做了养生博主，主打“拔毛清心”。"],
+ fearHi:["🚨","人类恐惧爆表","都市传说·凶鹅","全城人类提到你都瑟瑟发抖。派出所专门成立了“防鹅小组”，而你成了儿童睡前故事里的反派。"],
+ fearLo:["🧸","人类毫无恐惧","全民团宠大鹅","人类彻底不怕你了。他们给你戴上了小红花，抱着你合影，你被迫成为社区吉祥物，再也没法啄人。"],
+ time1:["🏆","二十天后","顶流大白鹅","二十天过去，你拥有了千万粉丝，被邀请参加春晚，开口第一句：“鹅，鹅，鹅……”全场沸腾。"],
+ time2:["📱","二十天后","小有名气的鹅","你成了本地的网红，经常有人认出你并要求签名。虽然没成顶流，但你的生活快乐又自由。"],
+ time3:["🌾","二十天后","佛系路人鹅","二十天后，你没有大红大紫，但每天吃草、散步、啄人，过得无比充实。有时候，平凡才是真正的赢家。"]
+};
+
+let G={},Q=Promise.resolve(),typing=0,skip=false,aTimer;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const DAYS=20;
+/* 打字机：点击屏幕可跳过正在打印的文字 */
+document.addEventListener("click",()=>{if(typing)skip=true},true);
+function typeInto(el,text,sp=28){
+  return new Promise(res=>{
+    let i=0;typing++;el.classList.add("typing");
+    (function step(){
+      const done=skip||i>=text.length;
+      el.textContent=done?text:text.slice(0,++i);
+      if(el.parentNode===$("log"))el.parentNode.scrollTop=1e6;
+      if(done){el.classList.remove("typing");if(--typing<=0){typing=0;skip=false}res()}
+      else setTimeout(step,sp);
+    })();
+  });
+}
+function say(t,c){Q=Q.then(()=>{const p=document.createElement("p");if(c)p.className=c;$("log").appendChild(p);return typeInto(p,t,14)});return Q}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rnd(0,i);[a[i],a[j]]=[a[j],a[i]]}return a}
+function barsHTML(v){return STATS.map((s,i)=>`<div class="stat"><label>${s[0]}</label><div class="bar"><i class="${s[1]}" style="width:${v[i]}%"></i></div><b>${v[i]}</b></div>`).join("")}
+function rollStats(){return[rnd(30,50),rnd(40,60),rnd(20,40)]}
+function show(id){["start","game","over"].forEach(x=>$(x).classList.toggle("hidden",x!==id))}
+function render(){$("gStats").innerHTML=barsHTML(G.stats);$("gDay").textContent="第 "+G.day+" / "+DAYS+" 天";$("gFans").textContent="粉丝 "+G.fans}
+function showStart(){G={stats:rollStats()};$("startStats").innerHTML=barsHTML(G.stats)}
+function toStart(){
+  const s=$("stage");s.className="stage";s.dataset.solo=1;delete s.dataset.taken;
+  show("start");showStart();
+  typeInto($("introText"),"一只平平无奇的大白鹅，决定走上网红之路。先给它起个响亮的名字吧！");
+}
+
+/* ===== 插画舞台 ===== */
+/* ===== 每个事件的专属角色 ===== */
+const K="#2b1d12",OR="#ff9a1f",S="#ffd7b5";
+const ln=(d,w=4,c=K)=>`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+const sh=(t,a,f)=>`<${t} ${a} fill="${f}" stroke="${K}" stroke-width="4" stroke-linejoin="round"/>`;
+const tx=(x,y,z,t,c=K)=>`<text x="${x}" y="${y}" text-anchor="middle" font-size="${z}" font-weight="900" fill="${c}">${t}</text>`;
+const face=(x,y)=>`<circle cx="${x-8}" cy="${y}" r="3" fill="${K}"/><circle cx="${x+8}" cy="${y}" r="3" fill="${K}"/><path class="sm" d="M${x-8} ${y+11}q8 7 16 0" fill="none" stroke="${K}" stroke-width="3" stroke-linecap="round"/><ellipse class="ob" cx="${x}" cy="${y+14}" rx="5" ry="6" fill="${K}"/>`;
+const man=(c,skin,top,ex="")=>ln("M38 110v28M62 110v28")+ln("M28 66 12 96M72 66 88 96")+sh("rect",'x="26" y="56" width="48" height="58" rx="14"',c)+sh("circle",'cx="50" cy="34" r="22"',skin)+top+face(50,34)+ex;
+const perm=c=>sh("path",'d="M26 30q-8-14 4-20t20-4 20 4 4 20q-6-12-24-12t-24 12z"',c);
+const CH={
+"公园晨跑大爷":man("#8aa0b8","#f3cfa8",sh("path",'d="M28 32q-2-22 22-22t22 22q-8-10-22-10t-22 10z"',"#fff")+sh("path",'d="M36 46q14 24 28 0z"',"#fff"),ln("M88 82v56",5)+ln("M28 25h44",6,"#ff4d5a")),
+"网红打卡点":man("#ff7eb6",S,sh("path",'d="M26 36q-4-28 24-28t24 28q-6-14-24-14t-24 14z"',"#5a3a2a"),ln("M72 70 90 26",3)+sh("rect",'x="82" y="4" width="14" height="22" rx="3"',"#6cf")),
+"外卖小哥的电动车":sh("circle",'cx="22" cy="126" r="12"',"#666")+sh("circle",'cx="82" cy="126" r="12"',"#666")+ln("M26 114h38l14-28h8",6)+sh("rect",'x="0" y="60" width="28" height="30" rx="4"',OR)+sh("rect",'x="32" y="52" width="38" height="52" rx="12"',"#ffd23f")+sh("circle",'cx="58" cy="30" r="20"',S)+sh("path",'d="M38 28q20-30 40 0z"',"#ffd23f")+face(58,32),
+"池塘里的天鹅":ln("M2 138q10-6 20 0t20 0t20 0t20 0t20 0",3,"#3aa0ff")+ln("M74 100C96 92 80 62 68 46",18)+ln("M74 100C96 92 80 62 68 46",11,"#fff")+sh("ellipse",'cx="48" cy="112" rx="38" ry="22"',"#fff")+ln("M26 110q20-14 42 0",3)+sh("circle",'cx="64" cy="38" r="12"',"#fff")+sh("path",'d="M54 34 36 40 54 44z"',OR)+sh("path",'d="M54 28l3 7 7-9 7 9 3-7v-5H54z"',"#ffd23f")+`<circle cx="62" cy="36" r="2.6" fill="${K}"/>`,
+"广场舞大妈团":man("#ff5a6e",S,perm("#8a4a3a"),sh("path",'d="M66 86l8-28 20 22z"',OR)),
+"一桶神秘饲料":sh("path",'d="M28 62q-6-18 8-26 0 10 12 4 0-14 14-14-4 14 4 22 8-2 6 14z"',"#b9ff6a")+sh("rect",'x="22" y="62" width="56" height="76" rx="8"',"#4ad66d")+ln("M22 82h56M22 118h56",3)+face(50,100)+tx(50,77,14,"?"),
+"人类小朋友来喂食":man("#6cc4ff",S,sh("circle",'cx="24" cy="32" r="9"',"#5a3a2a")+sh("circle",'cx="76" cy="32" r="9"',"#5a3a2a")+sh("path",'d="M28 30q22-30 44 0z"',"#5a3a2a"),sh("ellipse",'cx="88" cy="94" rx="10" ry="7"',"#e0a050")),
+"暴雨突袭":ln("M26 92l-4 14M44 98l-4 14M62 92l-4 14M80 98l-4 14",4,"#3aa0ff")+sh("path",'d="M52 84l-14 26h12l-8 28 24-36H54l10-18z"',"#ffe14a")+sh("path",'d="M20 74q-14-4-10-20t24-10q4-22 30-20t24 22q18 2 16 18t-26 10z"',"#8fa3c8")+face(52,54),
+"野生鸭子帮派":ln("M40 132v8M62 132v8",4,OR)+sh("ellipse",'cx="52" cy="108" rx="34" ry="26"',"#ffd23f")+ln("M52 100q18 4 22 22",3)+sh("circle",'cx="42" cy="62" r="20"',"#ffd23f")+sh("path",'d="M24 66 4 72 24 78z"',OR)+sh("path",'d="M24 78h36l-4 10H28z"',"#ff4d5a")+`<rect x="26" y="52" width="32" height="11" rx="4" fill="${K}"/>`,
+"商场的旋转门":sh("circle",'cx="50" cy="84" r="46"',"#bfe9ff")+`<g class="spin">`+ln("M50 40v88M6 84h88",5)+`</g>`+sh("circle",'cx="50" cy="84" r="16"',"#fff")+face(50,80),
+"摄影师的约拍":man("#3d8b5f",S,sh("path",'d="M26 30q24-36 48 0z"',"#2b6cb0")+ln("M68 28h20",6,"#2b6cb0"),sh("rect",'x="20" y="76" width="48" height="30" rx="5"',"#444")+sh("circle",'cx="44" cy="91" r="11"',"#9fd8ff")+sh("circle",'cx="44" cy="91" r="4"',"#fff")),
+"夜晚的月亮":sh("path",'d="M60 10A56 60 0 0 0 60 130A30 60 0 0 1 60 10z"',"#fff3a0")+face(16,66)+sh("path",'d="M78 24l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"',"#fff")+sh("path",'d="M86 84l3 8 8 3-8 3-3 8-3-8-8-3 8-3z"',"#fff"),
+"快递驿站大战":sh("rect",'x="34" y="20" width="32" height="32"',"#d9a066")+sh("rect",'x="22" y="52" width="56" height="40"',"#e7b77a")+face(50,70)+sh("rect",'x="10" y="92" width="80" height="46"',"#d9a066")+ln("M50 20v32M10 112h80",3)+tx(50,130,14,"易碎","#d1202f"),
+"健身房的跑步机":sh("rect",'x="6" y="126" width="88" height="12" rx="6"',"#555")+ln("M88 126V72l-12-8",5)+man("#ff9a1f",S,sh("path",'d="M28 30q22-28 44 0z"',"#3b2a1a"),ln("M28 25h44",6,"#ff4d5a")+sh("path",'d="M82 30q-5 9 0 11 5-2 0-11z"',"#5fd0ff")),
+"公园相亲角":man("#b07be8",S,perm("#aaa"),ln("M80 100v38",4)+sh("rect",'x="58" y="68" width="40" height="32" rx="4"',"#fff")+tx(78,90,15,"征婚","#d1202f")),
+"奶茶店排队":ln("M52 42 62 6",7,"#ff6f91")+sh("path",'d="M22 50h56l-6 86H28z"',"#e8c28f")+sh("rect",'x="17" y="40" width="66" height="12" rx="5"',"#fff")+face(50,78)+[[34,126],[48,128],[62,126],[41,116],[55,116]].map(q=>`<circle cx="${q[0]}" cy="${q[1]}" r="5" fill="${K}"/>`).join(""),
+"无人机来袭":`<ellipse cx="50" cy="138" rx="22" ry="4" fill="rgba(0,0,0,.2)"/>`+ln("M32 66 10 48M68 66 90 48",4)+sh("ellipse",'class="rot" cx="10" cy="44" rx="14" ry="4"',"#ddd")+sh("ellipse",'class="rot" cx="90" cy="44" rx="14" ry="4"',"#ddd")+sh("ellipse",'cx="50" cy="72" rx="24" ry="15"',"#e9e9e9")+face(50,68)+sh("circle",'cx="50" cy="90" r="7"',"#333")+`<circle cx="50" cy="58" r="3" fill="#ff4d5a"/>`,
+"保安大叔的追捕":ln("M90 140 82 62",5)+sh("path",'d="M70 140h28l-4-22H74z"',"#e0a050")+man("#2f4f8f",S,sh("path",'d="M26 28q24-36 48 0z"',"#1f3a6e")+sh("rect",'x="22" y="26" width="56" height="8" rx="3"',"#1f3a6e"),sh("rect",'x="58" y="76" width="12" height="10" rx="2"',"#ffd23f")),
+"直播连麦":man("#ff4fa0",S,`<circle cx="50" cy="34" r="33" fill="none" stroke="#fff" stroke-width="7"/><circle cx="50" cy="34" r="33" fill="none" stroke="${K}" stroke-width="2"/>`+sh("path",'d="M26 36q-4-28 24-28t24 28q-6-14-24-14t-24 14z"',"#e8b04a"),sh("rect",'x="72" y="70" width="16" height="28" rx="3"',"#6cf")+sh("rect",'x="0" y="2" width="34" height="15" rx="4"',"#ff4d5a")+tx(17,14,11,"LIVE","#fff")),
+"邻居的葡萄架":ln("M4 16h92M26 16v20M74 16v20",5,"#8a5a2b")+ln("M50 16v32",5,"#4a8f3a")+sh("path",'d="M54 34q24-14 38 4-16 14-38-4z"',"#5fcf75")+[[28,62],[50,62],[72,62],[39,84],[61,84],[50,106]].map(q=>sh("circle",`cx="${q[0]}" cy="${q[1]}" r="13"`,"#8a4fd0")).join("")+face(50,84)
+};
+
+const BURST={attack:"砰！",rage:"吼！！",flee:"咻——",grab:"抢！",idle:"嗯……",show:"闪耀！"};
+function pickAnim(t,fx){
+  if(/发呆|沉思|佛系|默默|啥也不干|冷漠|假装|昂首/.test(t))return"idle";
+  if(/优雅|展示|模仿|领舞|太极|摆拍|欣然|加入|温柔|转了|大摇大摆|蹬腿|请它们/.test(t))return"show";
+  if(/咆哮|怒吼|高歌|大声/.test(t))return"rage";
+  if(/啄|示威|挑战|单挑|发起/.test(t))return"attack";
+  if(/躲|离开|拒绝|转身|狂奔|跑|逃/.test(t))return"flee";
+  if(/叼|偷|抢|钻|吃光|尝|接过|借用/.test(t))return"grab";
+  return fx[2]>=8?"attack":fx[2]<0?"show":"idle";
+}
+function act(k){
+  const s=$("stage"),b=$("burst");clearTimeout(aTimer);
+  s.className="stage";
+  s.style.setProperty("--d",Math.max(60,s.clientWidth*.87-155)+"px");
+  s.style.setProperty("--o",(s.clientWidth*.06+160)+"px");
+  void s.offsetWidth;s.classList.add("a-"+k);
+  $("bt").textContent=BURST[k];b.classList.remove("go");void b.offsetWidth;b.classList.add("go");
+  aTimer=setTimeout(()=>{s.className="stage";if(k==="grab")s.dataset.taken=1},2200);
+}
+function stageEvent(e,i){
+  const s=$("stage");clearTimeout(aTimer);
+  delete s.dataset.solo;delete s.dataset.taken;
+  s.style.setProperty("--c","hsl("+(i*37%360)+" 85% 62%)");
+  $("npc").innerHTML='<svg viewBox="0 0 100 150" width="100%">'+(CH[e.t]||"")+"</svg>";
+  $("cap").textContent=e.t;s.className="stage";void s.offsetWidth;s.classList.add("enter");
+}
+
+/* ===== 游戏流程 ===== */
+$("reroll").onclick=showStart;
+$("begin").onclick=()=>{
+  const name=$("nameIn").value.trim()||NAMES[rnd(0,NAMES.length-1)];
+  G={name,stats:G.stats.slice(),day:0,fans:0,deck:[],last:-1,busy:false,cur:null};
+  $("gName").textContent=name;$("log").innerHTML="";$("opts").innerHTML="";Q=Promise.resolve();
+  $("dlgTag").textContent="第 0 天 · 出道";
+  show("game");render();$("nextBtn").disabled=false;
+  typeInto($("dlgText"),name+"站在池塘边，眼神坚定：“今天，我要成为全城最红的鹅！”");
+  say(name+"正式出道，一共 "+DAYS+" 天，每天一件新鲜事。");
+};
+function nextEvent(){
+  if(G.busy)return;
+  /* 洗牌抽取：每个事件抽过就从牌堆移除，一局内不会重复 */
+  if(!G.deck.length){G.deck=shuffle(EVENTS.map((_,i)=>i));if(G.deck[G.deck.length-1]===G.last)G.deck.reverse()}
+  const i=G.deck.pop(),e=EVENTS[i];
+  G.last=i;G.cur=e;G.day++;G.busy=true;
+  $("nextBtn").disabled=true;render();stageEvent(e,i);
+  $("opts").innerHTML="";$("dlgTag").textContent="第 "+G.day+" 天 · "+e.t;
+  typeInto($("dlgText"),e.d).then(()=>{
+    e.o.forEach((o,n)=>{
+      const b=document.createElement("button");b.textContent=o[0];
+      b.style.animationDelay=(n*.08)+"s";b.onclick=()=>choose(o);$("opts").appendChild(b);
+    });
+  });
+}
+function choose(o){
+  const [txt,res,fx]=o,sg=n=>n>0?"+"+n:n;
+  $("opts").innerHTML="";
+  for(let i=0;i<3;i++)G.stats[i]=clamp(G.stats[i]+fx[i]);
+  G.fans+=fx[3];render();act(pickAnim(txt,fx));
+  const t=typeInto($("dlgText"),res);
+  say("第 "+G.day+" 天 · "+G.cur.t+"：我选择「"+txt+"」");
+  say("战斗力"+sg(fx[0])+"　光泽"+sg(fx[1])+"　恐惧"+sg(fx[2])+"　粉丝+"+fx[3],"res");
+  Promise.all([t,Q,sleep(1900)]).then(()=>{
+    G.busy=false;const end=check();
+    if(end)setTimeout(()=>finish(end),500);else $("nextBtn").disabled=false;
+  });
+}
+function check(){
+  const [f,s,k]=G.stats;
+  if(f>=100)return"fightHi";if(f<=0)return"fightLo";
+  if(s>=100)return"shineHi";if(s<=0)return"shineLo";
+  if(k>=100)return"fearHi";if(k<=0)return"fearLo";
+  if(G.day>=DAYS)return G.fans>=700?"time1":G.fans>=450?"time2":"time3";
+  return null;
+}
+const ENDACT={fightHi:"show",fightLo:"idle",shineHi:"show",shineLo:"flee",fearHi:"rage",fearLo:"show",time1:"show",time2:"show",time3:"idle"};
+function finish(key){
+  const e=ENDS[key];
+  $("oTag").textContent=e[1];$("oTitle").textContent="《"+G.name+"："+e[2]+"》";
+  $("oSum").textContent="坚持 "+G.day+" 天 · 粉丝 "+G.fans+" · 战斗力 "+G.stats[0]+" · 光泽 "+G.stats[1]+" · 恐惧 "+G.stats[2];
+  $("oText").textContent="";show("over");act(ENDACT[key]);typeInto($("oText"),e[3]);
+}
+$("nextBtn").onclick=nextEvent;
+$("again").onclick=()=>{$("nameIn").value="";toStart()};
+toStart();
+</script>
+</body>
+</html>
